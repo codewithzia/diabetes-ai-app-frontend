@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@use "tailwindcss";
 
 @theme {
   --color-primary-50: #eef2ff;
@@ -52,4 +52,12 @@ html, body {
 
 .badge {
   @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.nav-link {
+  @apply px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors;
+}
+
+.nav-link-active {
+  @apply bg-indigo-50 text-indigo-700;
 }

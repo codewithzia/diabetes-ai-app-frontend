@@ -46,15 +46,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         }
       </div>
     </nav>
-  `,
-  styles: [`
-    .nav-link {
-      @apply px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors;
-    }
-    .nav-link-active {
-      @apply bg-indigo-50 text-indigo-700;
-    }
-  `]
+  `
 })
 export class Navbar {
   mobileOpen = false;
