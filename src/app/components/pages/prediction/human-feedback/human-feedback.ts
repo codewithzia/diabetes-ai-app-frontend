@@ -18,6 +18,15 @@ import { FeedbackType, HelpfulnessLevel } from '../../../../models/feedback.mode
       </div>
 
       @if (!submitted()) {
+        <div class="mb-4 rounded-lg bg-indigo-50 border border-indigo-100 p-3">
+          <p class="text-xs text-indigo-700 leading-relaxed">
+            Your answer is recorded as a <span class="font-semibold">feedback signal</span>
+            (agree/disagree + reward). It is not a verified medical label and does not
+            retrain the model by itself. Only trusted, verified labels may become
+            supervised training data in the adaptive-learning system.
+          </p>
+        </div>
+
         <!-- Agree / Disagree -->
         <div class="mb-6">
           <p class="form-label">Do you agree with this prediction?</p>
@@ -153,6 +162,7 @@ export class HumanFeedback {
 
     this.state.setFeedbackMeta(this.feedbackType()!, this.helpfulness()!, this.comment);
 
+    const started = performance.now();
     this.api.submitFeedback({
       prediction_id: prediction.prediction_id ?? 'unknown',
       feedback: this.feedbackType()!,
@@ -161,6 +171,14 @@ export class HumanFeedback {
     }).subscribe({
       next: (response) => {
         this.state.setFeedbackResponse(response);
+        this.state.setLastApiCall({
+          method: 'POST',
+          url: '/api/feedback',
+          status: 200,
+          ms: Math.round(performance.now() - started),
+          response,
+          at: new Date(),
+        });
         this.loading.set(false);
         this.submitted.set(true);
       },

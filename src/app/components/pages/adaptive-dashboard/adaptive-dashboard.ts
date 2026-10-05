@@ -1,6 +1,6 @@
-import { Component, inject, signal, OnInit, computed } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { ApiService } from '../../../services/api.service';
-import { AdaptiveMetrics, MetricPoint, FeedbackMetricPoint } from '../../../models/adaptive.model';
+import { AdaptiveMetrics, AdaptiveStatus, MetricPoint, FeedbackMetricPoint } from '../../../models/adaptive.model';
 import { ModelVersion } from '../../../models/model-status.model';
 import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
 
@@ -32,35 +32,70 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
           </div>
         </div>
       } @else if (metrics()) {
-        <!-- Summary Stats -->
+        <!-- Live Registry Status -->
+        @if (adaptiveStatus(); as s) {
+          <div class="card mb-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Adaptive Learning Status</h2>
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 mb-1">Active Model</p>
+                <p class="text-xl font-bold text-indigo-600">{{ s.active_version }}</p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 mb-1">Latest Candidate</p>
+                <p class="text-xl font-bold text-slate-800">{{ s.latest_candidate ?? '—' }}</p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 mb-1">Candidate Status</p>
+                <p class="text-xl font-bold text-slate-800">{{ s.candidate_status ?? '—' }}</p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 mb-1">Adaptive Update</p>
+                <p class="text-xl font-bold" [class]="s.adaptive_enabled ? 'text-green-600' : 'text-amber-600'">
+                  {{ s.adaptive_enabled ? 'Enabled' : 'Disabled' }}
+                </p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-4">
+                <p class="text-xs text-slate-500 mb-1">Pending Verified Feedback</p>
+                <p class="text-xl font-bold text-slate-800">{{ s.pending_verified_feedback }}</p>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400 mt-3">
+              Human-feedback-guided incremental retraining. Candidates are evaluated
+              against the active model and activated only after manual approval.
+            </p>
+          </div>
+        }
+
+        <!-- Live Database Counts -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="card !p-4">
-            <p class="text-xs text-slate-500 mb-1">Feedback Observations</p>
-            <p class="text-2xl font-bold text-slate-800">{{ formatNumber(metrics()!.total_feedback) }}</p>
+            <p class="text-xs text-slate-500 mb-1">Feedback Records (database)</p>
+            <p class="text-2xl font-bold text-slate-800">{{ formatNumber(metrics()!.database.total_feedback) }}</p>
           </div>
           <div class="card !p-4">
-            <p class="text-xs text-slate-500 mb-1">Total Predictions</p>
-            <p class="text-2xl font-bold text-slate-800">{{ formatNumber(metrics()!.total_predictions) }}</p>
+            <p class="text-xs text-slate-500 mb-1">Predictions (database)</p>
+            <p class="text-2xl font-bold text-slate-800">{{ formatNumber(metrics()!.database.total_predictions) }}</p>
           </div>
           <div class="card !p-4">
             <p class="text-xs text-slate-500 mb-1">Current Model</p>
-            <p class="text-2xl font-bold text-indigo-600">{{ metrics()!.current_version }}</p>
+            <p class="text-2xl font-bold text-indigo-600">{{ metrics()!.model.active_version }}</p>
           </div>
           <div class="card !p-4">
             <p class="text-xs text-slate-500 mb-1">Last Update</p>
-            <p class="text-sm font-semibold text-slate-700">{{ metrics()!.last_update }}</p>
+            <p class="text-sm font-semibold text-slate-700">{{ metrics()!.model.last_update }}</p>
           </div>
         </div>
 
         <!-- Model Versions Timeline -->
         <div class="card mb-6">
-          <h2 class="text-lg font-semibold text-slate-800 mb-4">Model Versions</h2>
+          <h2 class="text-lg font-semibold text-slate-800 mb-4">Model Versions (baseline lineage)</h2>
           <div class="flex flex-wrap gap-3">
             @for (v of modelVersions; track v.version) {
               <div class="flex items-center gap-3 px-4 py-3 rounded-lg border"
-                   [class]="v.version === metrics()!.current_version ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white'">
+                   [class]="v.version === metrics()!.model.active_version ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white'">
                 <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
-                     [class]="v.version === metrics()!.current_version ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'">
+                     [class]="v.version === metrics()!.model.active_version ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'">
                   {{ v.version }}
                 </div>
                 <div>
@@ -84,7 +119,7 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
               }
 
               <!-- X-axis labels -->
-              @for (point of metrics()!.performance_metrics; track point.version; let i = $index) {
+              @for (point of metrics()!.baseline_performance; track point.version; let i = $index) {
                 <text [attr.x]="getX(i)" [attr.y]="chartHeight - padding + 20" text-anchor="middle" class="text-xs fill-slate-500">{{ point.version }}</text>
               }
 
@@ -98,7 +133,7 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
                   stroke-linejoin="round"
                   stroke-linecap="round"
                 />
-                @for (point of metrics()!.performance_metrics; track point.version + '-' + i; let i = $index) {
+                @for (point of metrics()!.baseline_performance; track point.version + '-' + i; let i = $index) {
                   <circle [attr.cx]="getX(i)" [attr.cy]="getYPoint(point, metric.key)" [attr.r]="3" [attr.fill]="metric.color" />
                 }
               }
@@ -124,7 +159,7 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
                 <text [attr.x]="padding - 10" [attr.y]="getY(tick) + 4" text-anchor="end" class="text-xs fill-slate-400">{{ tick.toFixed(1) }}</text>
               }
 
-              @for (point of metrics()!.feedback_metrics; track point.version; let i = $index) {
+              @for (point of metrics()!.baseline_feedback; track point.version; let i = $index) {
                 <text [attr.x]="getX(i)" [attr.y]="chartHeight - padding + 20" text-anchor="middle" class="text-xs fill-slate-500">{{ point.version }}</text>
               }
 
@@ -137,7 +172,7 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
                   stroke-linejoin="round"
                   stroke-linecap="round"
                 />
-                @for (point of metrics()!.feedback_metrics; track point.version + '-' + i; let i = $index) {
+                @for (point of metrics()!.baseline_feedback; track point.version + '-' + i; let i = $index) {
                   <circle [attr.cx]="getX(i)" [attr.cy]="getYFeedbackPoint(point, line.key)" [attr.r]="3" [attr.fill]="line.color" />
                 }
               }
@@ -162,6 +197,7 @@ export class AdaptiveDashboard implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly metrics = signal<AdaptiveMetrics | null>(null);
+  readonly adaptiveStatus = signal<AdaptiveStatus | null>(null);
 
   readonly modelVersions: ModelVersion[] = [
     { version: 'V0', label: 'Initial', description: 'Baseline model', date: '2024-01-01' },
@@ -202,6 +238,10 @@ export class AdaptiveDashboard implements OnInit {
         this.loading.set(false);
       }
     });
+    this.api.getAdaptiveStatus().subscribe({
+      next: (s) => this.adaptiveStatus.set(s),
+      error: () => this.adaptiveStatus.set(null),
+    });
   }
 
   formatNumber(n: number): string {
@@ -209,7 +249,7 @@ export class AdaptiveDashboard implements OnInit {
   }
 
   getX(index: number): number {
-    const points = this.metrics()?.performance_metrics ?? [];
+    const points = this.metrics()?.baseline_performance ?? [];
     if (points.length <= 1) return this.padding;
     const usableWidth = this.chartWidth - 2 * this.padding;
     return this.padding + (index / (points.length - 1)) * usableWidth;
@@ -221,12 +261,12 @@ export class AdaptiveDashboard implements OnInit {
   }
 
   getLinePoints(key: keyof MetricPoint): string {
-    const points = this.metrics()?.performance_metrics ?? [];
+    const points = this.metrics()?.baseline_performance ?? [];
     return points.map((p, i) => `${this.getX(i)},${this.getY(p[key] as number)}`).join(' ');
   }
 
   getFeedbackLinePoints(key: keyof FeedbackMetricPoint): string {
-    const points = this.metrics()?.feedback_metrics ?? [];
+    const points = this.metrics()?.baseline_feedback ?? [];
     return points.map((p, i) => `${this.getX(i)},${this.getY(p[key] as number)}`).join(' ');
   }
 

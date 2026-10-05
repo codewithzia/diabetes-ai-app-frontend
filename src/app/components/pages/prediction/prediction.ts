@@ -5,10 +5,12 @@ import { PredictionResult } from './prediction-result/prediction-result';
 import { ExplainableAi } from './explainable-ai/explainable-ai';
 import { HumanFeedback } from './human-feedback/human-feedback';
 import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
+import { SystemStatus } from '../../shared/system-status/system-status';
+import { ApiDebug } from '../../shared/api-debug/api-debug';
 
 @Component({
   selector: 'app-prediction',
-  imports: [PredictionResult, ExplainableAi, HumanFeedback, FeedbackLoop],
+  imports: [PredictionResult, ExplainableAi, HumanFeedback, FeedbackLoop, SystemStatus, ApiDebug],
   template: `
     <div class="max-w-5xl mx-auto px-4 py-8">
       @if (hasPrediction()) {
@@ -17,6 +19,8 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
         <app-prediction-result></app-prediction-result>
         <app-explainable-ai></app-explainable-ai>
         <app-human-feedback></app-human-feedback>
+        <app-system-status></app-system-status>
+        <app-api-debug></app-api-debug>
       } @else {
         <div class="card text-center py-12">
           <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-4">

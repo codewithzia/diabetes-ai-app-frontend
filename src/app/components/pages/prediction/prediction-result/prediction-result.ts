@@ -61,9 +61,21 @@ import { Router } from '@angular/router';
               <p class="text-lg font-semibold text-slate-700">{{ prediction()?.model_version ?? '—' }}</p>
             </div>
             <div class="bg-slate-50 rounded-lg p-4">
-              <p class="text-xs text-slate-500 mb-1">Threshold</p>
+              <p class="text-xs text-slate-500 mb-1">Decision Threshold</p>
               <p class="text-lg font-semibold text-slate-700">
-                {{ thresholdLabel() }}
+                {{ prediction()?.threshold?.toFixed(2) ?? '—' }}
+              </p>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-4">
+              <p class="text-xs text-slate-500 mb-1">Prediction ID</p>
+              <p class="text-sm font-mono font-semibold text-slate-700 break-all">
+                {{ prediction()?.prediction_id ?? '—' }}
+              </p>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-4">
+              <p class="text-xs text-slate-500 mb-1">Mode</p>
+              <p class="text-lg font-semibold text-slate-700 uppercase">
+                {{ prediction()?.mode ?? '—' }}
               </p>
             </div>
           </div>
@@ -74,8 +86,9 @@ import { Router } from '@angular/router';
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <p class="text-sm text-amber-800 leading-relaxed">
-                This research prototype provides a statistical risk estimate and does not
-                constitute a medical diagnosis.
+                <span class="font-semibold">Research prototype.</span>
+                This AI-estimated risk is not a medical diagnosis and must not be
+                used for clinical decisions.
               </p>
             </div>
           </div>
@@ -117,18 +130,12 @@ export class PredictionResult {
   predictionLabel(): string {
     const p = this.prediction();
     if (!p) return '—';
-    return p.prediction === 1 ? 'Positive' : 'Negative';
+    return p.prediction === 1 ? 'Diabetes Risk Indicated' : 'No Diabetes Risk Indicated';
   }
 
   predictionTextColor(): string {
     const p = this.prediction();
     if (!p) return 'text-slate-700';
     return p.prediction === 1 ? 'text-red-600' : 'text-green-600';
-  }
-
-  thresholdLabel(): string {
-    const p = this.prediction();
-    if (!p) return '—';
-    return `Optimized (${p.threshold.toFixed(2)})`;
   }
 }

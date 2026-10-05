@@ -1,5 +1,6 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { ApiService } from '../../../services/api.service';
+import { AppState } from '../../../services/app-state';
 import { ModelStatus } from '../../../models/model-status.model';
 import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
 
@@ -66,45 +67,50 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
           </div>
         </div>
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons (administrative/research operations) -->
         <div class="card">
           <h2 class="text-lg font-semibold text-slate-800 mb-4">Model Actions</h2>
-          <p class="text-sm text-slate-500 mb-4">
-            These actions call backend API endpoints to manage the adaptive learning pipeline.
-          </p>
 
-          @if (actionMessage()) {
-            <div class="mb-4 rounded-lg p-4" [class]="actionMessageClass()">
-              <p class="text-sm">{{ actionMessage() }}</p>
+          @if (demoMode()) {
+            <div class="rounded-lg bg-amber-50 border border-amber-200 p-4">
+              <p class="text-sm font-medium text-amber-800">
+                Adaptive operations are hidden in Research Demonstration Mode.
+              </p>
+              <p class="text-xs text-amber-700 mt-1 mb-3">
+                Running predictions and submitting feedback never trigger adaptive
+                retraining. The backend also blocks updates in TEST MODE.
+              </p>
+              <button type="button" class="btn-secondary text-sm" (click)="exitDemoMode()">
+                Exit demo mode to show admin actions
+              </button>
             </div>
-          }
+          } @else {
+            <p class="text-sm text-slate-500 mb-4">
+              Administrative/research operation: runs one human-feedback-guided
+              incremental retraining cycle. It creates and evaluates a
+              <span class="font-medium">candidate</span> model only — the active
+              model is never replaced automatically.
+            </p>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <button class="btn-secondary text-sm" (click)="executeAction('review')" [disabled]="actionLoading()">
-              Review Feedback
-            </button>
-            <button class="btn-primary text-sm" (click)="executeAction('train')" [disabled]="actionLoading()">
-              Start Adaptive Training
-            </button>
-            <button class="btn-secondary text-sm" (click)="executeAction('evaluate')" [disabled]="actionLoading()">
-              Evaluate New Model
-            </button>
-            <button class="btn-secondary text-sm" (click)="executeAction('promote')" [disabled]="actionLoading()">
-              Promote Model
-            </button>
-            <button class="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50" (click)="executeAction('rollback')" [disabled]="actionLoading()">
-              Rollback Model
-            </button>
-          </div>
+            @if (actionMessage()) {
+              <div class="mb-4 rounded-lg p-4" [class]="actionMessageClass()">
+                <p class="text-sm">{{ actionMessage() }}</p>
+              </div>
+            }
 
-          @if (actionLoading()) {
-            <div class="mt-4 flex items-center gap-2 text-sm text-slate-500">
-              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              Processing...
-            </div>
+            <button class="btn-primary text-sm" (click)="confirmAndRunAdaptiveCycle()" [disabled]="actionLoading()">
+              Run Adaptive Candidate Cycle
+            </button>
+
+            @if (actionLoading()) {
+              <div class="mt-4 flex items-center gap-2 text-sm text-slate-500">
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Processing...
+              </div>
+            }
           }
         </div>
       }
@@ -113,7 +119,9 @@ import { FeedbackLoop } from '../../shared/feedback-loop/feedback-loop';
 })
 export class Admin implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly state = inject(AppState);
 
+  readonly demoMode = this.state.demoMode;
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly status = signal<ModelStatus | null>(null);
@@ -139,29 +147,49 @@ export class Admin implements OnInit {
     });
   }
 
-  executeAction(action: string): void {
+  exitDemoMode(): void {
+    this.state.setDemoMode(false);
+  }
+
+  /**
+   * Runs ONE human-feedback-guided incremental retraining cycle.
+   * Requires explicit confirmation; the active model is never replaced.
+   */
+  confirmAndRunAdaptiveCycle(): void {
+    const confirmed = window.confirm(
+      'Run one adaptive candidate cycle?\n\n'
+      + 'This trains and evaluates a CANDIDATE model from verified feedback. '
+      + 'The active thesis model (V4) is NOT replaced.'
+    );
+    if (!confirmed) return;
+
     this.actionLoading.set(true);
     this.actionMessage.set(null);
 
-    if (action === 'train') {
-      this.api.triggerAdaptiveUpdate().subscribe({
-        next: (response) => {
-          this.actionSuccess.set(true);
-          this.actionMessage.set(`${response.message} — New version: ${response.new_version}`);
-          this.actionLoading.set(false);
-          this.loadStatus();
-        },
-        error: (err) => {
+    this.api.triggerAdaptiveUpdate().subscribe({
+      next: (response) => {
+        this.actionSuccess.set(true);
+        if (response.status === 'blocked') {
           this.actionSuccess.set(false);
-          this.actionMessage.set(err.message);
-          this.actionLoading.set(false);
+          this.actionMessage.set(response.message ?? 'Adaptive update is blocked in the current mode.');
+        } else if (response.status === 'skipped') {
+          this.actionMessage.set(`Skipped: ${response.reason} (active model unchanged)`);
+        } else if (response.status === 'candidate_created') {
+          this.actionMessage.set(
+            `Candidate ${response.version} created and evaluated. `
+            + `Active model ${response.active_version} unchanged — ${response.activation}`
+          );
+        } else {
+          this.actionMessage.set(JSON.stringify(response));
         }
-      });
-    } else {
-      this.actionSuccess.set(true);
-      this.actionMessage.set(`Action "${action}" sent to backend. This endpoint should be implemented on the server.`);
-      this.actionLoading.set(false);
-    }
+        this.actionLoading.set(false);
+      },
+      error: (err) => {
+        this.actionSuccess.set(false);
+        this.actionMessage.set(err.message);
+        this.actionLoading.set(false);
+      }
+    });
   }
 
   actionMessageClass(): string {

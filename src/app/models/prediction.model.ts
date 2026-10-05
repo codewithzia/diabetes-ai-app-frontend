@@ -39,6 +39,8 @@ export interface PredictionResponse {
   threshold: number;
   explanations: ExplanationFactor[];
   prediction_id?: string;
+  mode?: string;
+  test_case_id?: string;
 }
 
 export interface DropdownOption {

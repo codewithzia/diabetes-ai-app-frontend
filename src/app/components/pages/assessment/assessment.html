@@ -8,6 +8,35 @@
 
   <app-feedback-loop activeStep="Predict"></app-feedback-loop>
 
+  @if (state.demoMode()) {
+    <div class="card mb-6 border-indigo-200">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-indigo-600">Demo Profiles</h2>
+        <span class="text-xs text-slate-400">Synthetic examples — not real patients</span>
+      </div>
+      <p class="text-xs text-slate-500 mb-3">
+        Select a profile to auto-fill the form. The prediction is always computed
+        by the Flask backend; no result is hard-coded.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        @for (profile of demoProfiles; track profile.id) {
+          <button type="button"
+                  class="text-left rounded-lg border-2 border-slate-200 p-3 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                  (click)="applyDemoProfile(profile.id)">
+            <p class="text-sm font-semibold text-slate-800">{{ profile.label }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ profile.description }}</p>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  @if (validationError()) {
+    <div class="mb-6 rounded-lg bg-amber-50 border border-amber-200 p-4">
+      <p class="text-sm font-medium text-amber-800">{{ validationError() }}</p>
+    </div>
+  }
+
   @if (error()) {
     <div class="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
       <div class="flex items-start gap-3">
