@@ -23,6 +23,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
           <div class="hidden md:flex items-center gap-1">
             <a routerLink="/assessment" routerLinkActive="nav-link-active" class="nav-link">Assessment</a>
             <a routerLink="/prediction" routerLinkActive="nav-link-active" class="nav-link">Prediction</a>
+            <a routerLink="/history" routerLinkActive="nav-link-active" class="nav-link">History</a>
             <a routerLink="/adaptive" routerLinkActive="nav-link-active" class="nav-link">Adaptive Monitor</a>
             <a routerLink="/comparison" routerLinkActive="nav-link-active" class="nav-link">Model Comparison</a>
             <a routerLink="/admin" routerLinkActive="nav-link-active" class="nav-link">Admin</a>
@@ -39,6 +40,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
           <div class="md:hidden pb-3 flex flex-col gap-1">
             <a routerLink="/assessment" routerLinkActive="nav-link-active" class="nav-link" (click)="toggleMobile()">Assessment</a>
             <a routerLink="/prediction" routerLinkActive="nav-link-active" class="nav-link" (click)="toggleMobile()">Prediction</a>
+            <a routerLink="/history" routerLinkActive="nav-link-active" class="nav-link" (click)="toggleMobile()">History</a>
             <a routerLink="/adaptive" routerLinkActive="nav-link-active" class="nav-link" (click)="toggleMobile()">Adaptive Monitor</a>
             <a routerLink="/comparison" routerLinkActive="nav-link-active" class="nav-link" (click)="toggleMobile()">Model Comparison</a>
             <a routerLink="/admin" routerLinkActive="nav-link-active" class="nav-link" (click)="toggleMobile()">Admin</a>

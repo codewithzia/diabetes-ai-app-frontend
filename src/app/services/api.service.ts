@@ -6,6 +6,7 @@ import { PredictionRequest, PredictionResponse } from '../models/prediction.mode
 import { FeedbackRequest, FeedbackResponse } from '../models/feedback.model';
 import { ModelStatus, ModelVersion, ModelComparisonRow } from '../models/model-status.model';
 import { AdaptiveMetrics, AdaptiveStatus, AdaptiveUpdateResponse } from '../models/adaptive.model';
+import { HistoryListResponse, PredictionDetail } from '../models/history.model';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -55,6 +56,20 @@ export class ApiService {
   /** Sanitised adaptive-learning registry status (no filesystem paths). */
   getAdaptiveStatus(): Observable<AdaptiveStatus> {
     return this.http.get<AdaptiveStatus>(`${this.baseUrl}/adaptive/status`).pipe(
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /** Read-only prediction history (submitted cases, newest first). */
+  getPredictionHistory(): Observable<HistoryListResponse> {
+    return this.http.get<HistoryListResponse>(`${this.baseUrl}/predictions`).pipe(
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /** Read-only detail for one submitted prediction. */
+  getPredictionDetail(predictionId: string): Observable<PredictionDetail> {
+    return this.http.get<PredictionDetail>(`${this.baseUrl}/predictions/${predictionId}`).pipe(
       catchError((err) => this.handleError(err))
     );
   }
