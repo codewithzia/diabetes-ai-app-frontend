@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, throwError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { PredictionRequest, PredictionResponse } from '../models/prediction.model';
-import { FeedbackRequest, FeedbackResponse } from '../models/feedback.model';
+import { FeedbackRequest, FeedbackResponse, VerifiedOutcome, VerifyOutcomeResponse } from '../models/feedback.model';
 import { ModelStatus, ModelVersion, ModelComparisonRow } from '../models/model-status.model';
 import { AdaptiveMetrics, AdaptiveStatus, AdaptiveUpdateResponse } from '../models/adaptive.model';
 import { HistoryListResponse, PredictionDetail } from '../models/history.model';
@@ -24,6 +24,31 @@ export class ApiService {
 
   submitFeedback(request: FeedbackRequest): Observable<FeedbackResponse> {
     return this.http.post<FeedbackResponse>(`${this.baseUrl}/feedback`, request).pipe(
+      timeout(REQUEST_TIMEOUT_MS),
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /**
+   * Doctor/reviewer-only: record the verified clinical outcome for a
+   * feedback record. This is the ONLY way a supervised training label
+   * (verified_label) is created — agree/disagree never becomes a label.
+   * Never triggers adaptive retraining.
+   */
+  submitVerifiedOutcome(feedbackId: string, outcome: VerifiedOutcome): Observable<VerifyOutcomeResponse> {
+    return this.http.post<VerifyOutcomeResponse>(`${this.baseUrl}/feedback/${feedbackId}/verify`, { outcome }).pipe(
+      timeout(REQUEST_TIMEOUT_MS),
+      catchError((err) => this.handleError(err))
+    );
+  }
+
+  /**
+   * Safe demo cleanup (TEST MODE backend only): deletes explicitly
+   * identified demo/test prediction records and their feedback.
+   */
+  clearDemoPredictions(predictionIds: string[]): Observable<{ status: string; deleted_predictions: number; deleted_feedback: number }> {
+    return this.http.post<{ status: string; deleted_predictions: number; deleted_feedback: number }>(
+      `${this.baseUrl}/predictions/clear-demo`, { prediction_ids: predictionIds }).pipe(
       timeout(REQUEST_TIMEOUT_MS),
       catchError((err) => this.handleError(err))
     );

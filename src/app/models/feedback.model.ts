@@ -14,6 +14,22 @@ export interface FeedbackResponse {
   status: string;
 }
 
+/** Doctor/reviewer-only verified clinical outcome (NOT agree/disagree). */
+export type VerifiedOutcome = 'diabetes' | 'no_diabetes' | 'unable_to_verify';
+
+export interface VerifyOutcomeRequest {
+  outcome: VerifiedOutcome;
+}
+
+export interface VerifyOutcomeResponse {
+  feedback_id: string;
+  outcome: VerifiedOutcome;
+  verified_label: number | null;
+  status: string;
+  eligible_for_adaptive: boolean;
+  message?: string;
+}
+
 export interface FeedbackConfirmation {
   prediction: string;
   userFeedback: FeedbackType;

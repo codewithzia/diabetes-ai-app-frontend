@@ -28,6 +28,7 @@ export interface HistoryFeedbackEntry {
   helpfulness: string | null;
   comment: string | null;
   reward: number | null;
+  verified_label: number | null;
   has_verified_label: boolean;
   adaptive_processed: boolean;
   created_at: string;

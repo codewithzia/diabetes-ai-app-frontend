@@ -10,10 +10,10 @@ import { AppState } from '../../../services/app-state';
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
           <div class="flex items-center gap-2 min-w-0">
             <span class="inline-flex items-center gap-1.5 rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 whitespace-nowrap">
-              RESEARCH DEMO MODE
+              RESEARCH DEMONSTRATION MODE
             </span>
             <span class="text-xs text-amber-700 truncate">
-              Synthetic profiles only · Adaptive model updates disabled · Not a medical diagnosis
+              Synthetic data only · Adaptive Update: Disabled · Not a medical diagnosis
             </span>
           </div>
           <button class="text-xs font-medium text-amber-800 underline whitespace-nowrap hover:text-amber-900"

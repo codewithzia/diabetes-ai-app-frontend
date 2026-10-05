@@ -8,8 +8,9 @@ import {
   HistoryItem,
   HistoryListResponse,
   PredictionDetail,
+  HistoryFeedbackEntry,
 } from '../../../models/history.model';
-import { FeedbackType, HelpfulnessLevel } from '../../../models/feedback.model';
+import { FeedbackType, HelpfulnessLevel, VerifiedOutcome } from '../../../models/feedback.model';
 
 type RiskFilter = 'all' | 'higher' | 'moderate' | 'lower';
 type FeedbackFilter = 'all' | 'pending' | 'submitted';
@@ -264,7 +265,9 @@ type FeedbackFilter = 'all' | 'pending' | 'submitted';
                         <span class="badge bg-slate-100 text-slate-600">Helpfulness: {{ fb.helpfulness ?? '—' }}</span>
                         <span class="badge bg-slate-100 text-slate-600">Reward: {{ fb.reward }}</span>
                         <span class="badge" [class]="fb.has_verified_label ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'">
-                          {{ fb.has_verified_label ? 'Verified label present' : 'Training eligibility: Not verified' }}
+                          {{ fb.has_verified_label
+                             ? 'Verified Outcome: ' + (fb.verified_label === 1 ? 'Diabetes' : 'No Diabetes')
+                             : 'Verified Outcome: Not recorded' }}
                         </span>
                         <span class="badge" [class]="fb.adaptive_processed ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'">
                           Adaptive Processing: {{ fb.adaptive_processed ? 'Processed' : 'Not processed' }}
@@ -279,6 +282,16 @@ type FeedbackFilter = 'all' | 'pending' | 'submitted';
                 </div>
               } @else {
                 <p class="text-sm text-slate-500 mb-3">No feedback submitted yet for this prediction.</p>
+              }
+
+              @if (feedbackSuccess()) {
+                <div class="rounded-lg bg-green-50 border border-green-200 px-3 py-2 mt-2">
+                  <p class="text-sm font-medium text-green-800">Feedback submitted successfully.</p>
+                  <p class="text-[11px] text-green-700 mt-0.5">
+                    Recorded as human feedback only. Verified label and adaptive processing
+                    are unchanged; no adaptive update was triggered.
+                  </p>
+                </div>
               }
 
               @if (detail.feedback.length === 0) {
@@ -323,10 +336,96 @@ type FeedbackFilter = 'all' | 'pending' | 'submitted';
               }
             </div>
 
+            <!-- F. Verified Outcome (Doctor/Reviewer only) -->
+            @if (detail.feedback.length > 0) {
+              <div class="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 mb-6">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="text-sm font-bold uppercase tracking-wide text-indigo-700">Verified Outcome</h3>
+                  <span class="badge bg-indigo-100 text-indigo-700">Doctor/Reviewer only — requires reviewer authorisation</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-3">
+                  In this research prototype there is no login system; in deployment this action must be
+                  restricted to an authorised Doctor/Reviewer role. Only a verified outcome creates a
+                  supervised training label — Agree/Disagree never does. This does NOT trigger retraining.
+                </p>
+                @if (latestFeedback(detail); as fb) {
+                  <div class="flex flex-wrap items-center gap-2 mb-3">
+                    @for (opt of verifyOptions; track opt.value) {
+                      <button type="button"
+                              class="px-3 py-1.5 rounded-lg border-2 text-xs font-medium transition-all"
+                              [class]="verifyOutcome() === opt.value ? 'border-indigo-500 bg-indigo-100 text-indigo-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
+                              (click)="verifyOutcome.set(opt.value)">{{ opt.label }}</button>
+                    }
+                  </div>
+                  @if (verifyError()) {
+                    <p class="text-sm text-red-600 mb-2">{{ verifyError() }}</p>
+                  }
+                  @if (verifySuccess()) {
+                    <div class="rounded-lg bg-green-50 border border-green-200 px-3 py-2 mb-2">
+                      <p class="text-sm font-medium text-green-800">{{ verifySuccess() }}</p>
+                    </div>
+                  }
+                  <button type="button" class="btn-primary text-sm"
+                          [disabled]="!verifyOutcome() || verifyLoading()"
+                          (click)="submitVerifiedOutcome(detail, fb)">
+                    {{ verifyLoading() ? 'Saving…' : 'Save Verified Outcome' }}
+                  </button>
+                }
+              </div>
+            }
+
+            <!-- G. Adaptive learning status -->
+            <div class="rounded-lg border border-slate-200 p-4 mb-6">
+              <h3 class="text-sm font-bold uppercase tracking-wide text-slate-500 mb-3">Adaptive Learning</h3>
+              @if (latestFeedback(detail); as fb) {
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <dt class="text-[11px] text-slate-500">Human Feedback</dt>
+                    <dd class="text-sm font-semibold text-slate-800">{{ fb.feedback === 'agree' ? 'Agree' : 'Disagree' }}</dd>
+                  </div>
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <dt class="text-[11px] text-slate-500">Verified Outcome</dt>
+                    <dd class="text-sm font-semibold text-slate-800">
+                      {{ fb.has_verified_label ? (fb.verified_label === 1 ? 'Diabetes' : 'No Diabetes') : 'Not recorded' }}
+                    </dd>
+                  </div>
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <dt class="text-[11px] text-slate-500">Training Eligibility</dt>
+                    <dd class="text-sm font-semibold" [class]="fb.has_verified_label ? 'text-green-600' : 'text-amber-600'">
+                      {{ fb.has_verified_label ? 'Eligible for adaptive training: YES' : 'Eligible for adaptive training: NO' }}
+                    </dd>
+                  </div>
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <dt class="text-[11px] text-slate-500">Adaptive Processing</dt>
+                    <dd class="text-sm font-semibold" [class]="fb.adaptive_processed ? 'text-indigo-600' : 'text-slate-800'">
+                      {{ fb.adaptive_processed ? 'Processed' : (fb.has_verified_label ? 'Pending' : 'Not applicable') }}
+                    </dd>
+                  </div>
+                </dl>
+                @if (fb.has_verified_label) {
+                  <p class="text-[11px] text-slate-500">
+                    Verified outcome recorded. This feedback is eligible for the controlled
+                    adaptive-learning pipeline (Verified Label → Eligibility Check → Candidate Dataset →
+                    Candidate Model Training → Evaluation → Candidate Model → Controlled Activation).
+                    "Eligible" does not mean retraining has happened — candidates are never activated
+                    automatically.
+                  </p>
+                } @else {
+                  <p class="text-[11px] text-slate-500">
+                    Human feedback has been recorded, but no verified outcome has been provided.
+                    This record is not eligible for adaptive retraining.
+                  </p>
+                }
+              } @else {
+                <p class="text-sm text-slate-500">
+                  No feedback submitted yet. Adaptive eligibility is assessed only after review.
+                </p>
+              }
+            </div>
+
             <p class="text-[11px] text-slate-400">
-              Human-feedback-guided adaptive learning — only trusted, verified labels are
-              eligible for supervised retraining. Candidate models are evaluated against the
-              active model and activated only manually.
+              Human feedback is collected during review, while only verified labels are eligible
+              to contribute supervised training data to the controlled adaptive-learning pipeline.
             </p>
           </div>
           </div>
@@ -354,6 +453,18 @@ export class History implements OnInit {
   comment = '';
   readonly feedbackLoading = signal(false);
   readonly feedbackError = signal<string | null>(null);
+  readonly feedbackSuccess = signal(false);
+
+  readonly verifyOutcome = signal<VerifiedOutcome | null>(null);
+  readonly verifyLoading = signal(false);
+  readonly verifyError = signal<string | null>(null);
+  readonly verifySuccess = signal<string | null>(null);
+
+  readonly verifyOptions: { value: VerifiedOutcome; label: string }[] = [
+    { value: 'diabetes', label: 'Diabetes' },
+    { value: 'no_diabetes', label: 'No Diabetes' },
+    { value: 'unable_to_verify', label: 'Unable to Verify' },
+  ];
 
   readonly riskFilters: { value: RiskFilter; label: string }[] = [
     { value: 'all', label: 'All' },
@@ -470,6 +581,10 @@ export class History implements OnInit {
     this.helpfulness.set(null);
     this.comment = '';
     this.feedbackError.set(null);
+    this.feedbackSuccess.set(false);
+    this.verifyOutcome.set(null);
+    this.verifyError.set(null);
+    this.verifySuccess.set(null);
     this.api.getPredictionDetail(item.prediction_id).subscribe({
       next: (detail) => this.selected.set(detail),
       error: (err) => this.error.set(err.message),
@@ -501,6 +616,7 @@ export class History implements OnInit {
     }).subscribe({
       next: () => {
         this.feedbackLoading.set(false);
+        this.feedbackSuccess.set(true);
         // Refresh detail + list without a page reload.
         this.api.getPredictionDetail(detail.prediction_id).subscribe({
           next: (d) => this.selected.set(d),
@@ -512,6 +628,40 @@ export class History implements OnInit {
       error: (err) => {
         this.feedbackError.set(err.message);
         this.feedbackLoading.set(false);
+      },
+    });
+  }
+
+  latestFeedback(detail: PredictionDetail): HistoryFeedbackEntry | null {
+    const entries = detail.feedback ?? [];
+    return entries.length > 0 ? entries[entries.length - 1] : null;
+  }
+
+  submitVerifiedOutcome(detail: PredictionDetail, fb: HistoryFeedbackEntry): void {
+    const outcome = this.verifyOutcome();
+    if (!outcome) return;
+    this.verifyLoading.set(true);
+    this.verifyError.set(null);
+    this.verifySuccess.set(null);
+    this.api.submitVerifiedOutcome(fb.feedback_id, outcome).subscribe({
+      next: (res) => {
+        this.verifyLoading.set(false);
+        this.verifySuccess.set(
+          res.verified_label === null
+            ? 'Recorded: no training label created (Unable to Verify).'
+            : 'Verified outcome recorded. Eligible for the controlled adaptive-learning pipeline — no retraining was triggered.'
+        );
+        // Refresh detail + list without a page reload.
+        this.api.getPredictionDetail(detail.prediction_id).subscribe({
+          next: (d) => this.selected.set(d),
+        });
+        this.api.getPredictionHistory().subscribe({
+          next: (h) => this.history.set(h),
+        });
+      },
+      error: (err) => {
+        this.verifyError.set(err.message);
+        this.verifyLoading.set(false);
       },
     });
   }
